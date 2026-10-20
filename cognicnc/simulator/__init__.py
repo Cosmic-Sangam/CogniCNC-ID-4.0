@@ -1,0 +1,1 @@
+"""Virtual CNC factory simulator — stateful telemetry generation."""

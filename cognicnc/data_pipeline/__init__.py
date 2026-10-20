@@ -1,0 +1,1 @@
+"""Data pipeline subpackage — dataset loading, validation, preprocessing."""

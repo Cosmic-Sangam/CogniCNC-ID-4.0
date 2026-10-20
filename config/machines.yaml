@@ -1,0 +1,70 @@
+# ============================================================
+# CogniCNC - Virtual machine fleet definition
+# model_type maps to the AI4I "Type" column (L/M/H).
+# ============================================================
+
+machines:
+  - id: "TC-01"
+    name: "CNC Turning Center"
+    type: "turning"
+    model_type: "M"
+    position_in_line: 1
+    image: "turning_center.png"
+    baseline:
+      rpm: 2200
+      torque_nm: 28.0
+      tool_wear_rate_per_min: 0.08
+      air_temp_c: 24.0
+      process_temp_c: 36.0
+
+  - id: "MC-01"
+    name: "CNC Milling Center"
+    type: "milling"
+    model_type: "H"
+    position_in_line: 2
+    image: "milling_center.png"
+    baseline:
+      rpm: 3500
+      torque_nm: 22.0
+      tool_wear_rate_per_min: 0.10
+      air_temp_c: 24.0
+      process_temp_c: 38.0
+
+  - id: "DR-01"
+    name: "CNC Drilling Station"
+    type: "drilling"
+    model_type: "L"
+    position_in_line: 3
+    image: "drilling_station.png"
+    baseline:
+      rpm: 1800
+      torque_nm: 18.0
+      tool_wear_rate_per_min: 0.07
+      air_temp_c: 24.0
+      process_temp_c: 34.0
+
+  - id: "GR-01"
+    name: "Industrial Grinding Machine"
+    type: "grinding"
+    model_type: "M"
+    position_in_line: 4
+    image: "grinding_machine.png"
+    baseline:
+      rpm: 2800
+      torque_nm: 15.0
+      tool_wear_rate_per_min: 0.12
+      air_temp_c: 24.0
+      process_temp_c: 40.0
+
+  - id: "VIS-01"
+    name: "Automated Visual Inspection Station"
+    type: "inspection"
+    model_type: "L"
+    position_in_line: 5
+    image: "vision_station.png"
+    baseline:
+      rpm: 0
+      torque_nm: 0.0
+      tool_wear_rate_per_min: 0.0
+      air_temp_c: 23.0
+      process_temp_c: 26.0

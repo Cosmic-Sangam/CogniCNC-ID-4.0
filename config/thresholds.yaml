@@ -1,0 +1,28 @@
+# ============================================================
+# CogniCNC - Alerting and status thresholds (simulation defaults)
+# These are heuristic thresholds for simulated telemetry and
+# will be refined when models are integrated in Phase 2+.
+# ============================================================
+
+thresholds:
+  temperature:
+    warning_c: 55.0
+    critical_c: 70.0
+  torque:
+    warning_nm: 55.0
+    critical_nm: 70.0
+  rpm_drop_fraction:
+    warning: 0.15
+    critical: 0.30
+  tool_wear_minutes:
+    warning: 180
+    critical: 220
+
+alerting:
+  dedup_window_seconds: 30     # Used by alert service in Phase 3
+
+prediction:
+  failure_probability:
+    warning: 0.35
+    critical: 0.65
+  anomaly_score_quantile: 0.98

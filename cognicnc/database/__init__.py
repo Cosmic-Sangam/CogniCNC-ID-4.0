@@ -1,0 +1,1 @@
+"""SQLite persistence layer — connection, ORM models, repository."""

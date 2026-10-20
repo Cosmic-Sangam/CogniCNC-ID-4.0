@@ -1,0 +1,93 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- VS Code ----
+.vscode/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- CogniCNC runtime artifacts ----
+logs/
+*.log
+*.log.*
+
+# Keep artifact directory structure but ignore generated models
+artifacts/predictive_maintenance/*
+artifacts/anomaly_detection/*
+!artifacts/predictive_maintenance/.gitkeep
+!artifacts/anomaly_detection/.gitkeep
+
+# Keep data directory structure but ignore large data files
+data/raw/*
+data/processed/*
+data/simulated/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/simulated/.gitkeep
+
+# Keep assets directory
+!assets/machines/.gitkeep
+
+# ---- SQLite ----
+*.sqlite
+*.sqlite3
+*.db
+
+# Virtual environment (NEVER push 500+ MB)
+smartfactory_env/
+.venv/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Runtime database (regenerated on each run)
+data/processed/*.sqlite
+data/processed/*.sqlite-wal
+data/processed/*.sqlite-shm
+
+# Log files
+logs/*.log
+
+# Pytest cache
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Streamlit local secrets
+.streamlit/secrets.toml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Distribution
+dist/
+build/
+*.egg-info/

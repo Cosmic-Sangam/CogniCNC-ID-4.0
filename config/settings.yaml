@@ -1,0 +1,35 @@
+# ============================================================
+# CogniCNC - Global application settings
+# ============================================================
+
+app:
+  name: "CogniCNC"
+  version: "0.1.0-phase0"
+  environment: "development"
+  random_seed: 42
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  data_simulated: "data/simulated"
+  database: "data/processed"
+  artifacts_pm: "artifacts/predictive_maintenance"
+  artifacts_anomaly: "artifacts/anomaly_detection"
+  assets_machines: "assets/machines"
+  logs: "logs"
+
+logging:
+  level: "INFO"
+  console: true
+  file: true
+  max_bytes: 1048576
+  backup_count: 5
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
+
+simulation:
+  default_speed_multiplier: 1
+  tick_seconds: 1.0
+
+database:
+  sqlite_path: "data/processed/cognicnc.sqlite"

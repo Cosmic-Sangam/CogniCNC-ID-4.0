@@ -1,0 +1,19 @@
+# ---- Phase 0 core ----
+pyyaml==6.0.2
+python-dateutil==2.9.0.post0
+
+# ---- Testing ----
+pytest==8.3.3
+
+# ---- Data & ML (Phase 1) ----
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+joblib==1.4.2
+
+# ---- Database (Phase 3) ----
+sqlalchemy==2.0.36
+
+# ---- Dashboard (Phase 4) ----
+streamlit==1.40.2
+plotly==5.24.1
