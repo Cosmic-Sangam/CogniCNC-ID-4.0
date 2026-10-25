@@ -83,7 +83,6 @@ def _generate_alarm_wav_b64() -> str:
 @st.cache_data
 def get_alarm_audio_tag() -> str:
     b64 = _generate_alarm_wav_b64()
-    # Added 'loop' attribute so the alarm repeats continuously until faults clear or sound is disabled
     return f'<audio autoplay loop playsinline><source src="data:audio/wav;base64,{b64}" type="audio/wav"></audio>'
 
 
@@ -135,7 +134,6 @@ def render_alarm_system(fault_count: int, warning_count: int):
             unsafe_allow_html=True,
         )
 
-        # Play looping sound if enabled and faults exist
         if st.session_state.alarm_sound_enabled:
             st.markdown(get_alarm_audio_tag(), unsafe_allow_html=True)
 
@@ -304,7 +302,8 @@ def main() -> None:
     else:
         st.sidebar.warning("🧠 ML Models: **Demo Mode** (rule-based)")
         if st.sidebar.button("🔄 Train Models Now", use_container_width=True):
-            with st.sidebar.spinner("Training models from AI4I dataset..."):
+            # Fixed: Changed st.sidebar.spinner to st.spinner
+            with st.spinner("Training models from AI4I dataset..."):
                 success = auto_train_models(st.session_state.config)
                 if success:
                     inference.load()
