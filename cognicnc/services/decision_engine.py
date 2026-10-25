@@ -1,4 +1,5 @@
-"""Decision engine — converts raw model output into actionable decisions.
+"""
+Decision engine — converts raw model output into actionable decisions.
 
 The engine combines:
 * Failure probability from the supervised model.
@@ -17,13 +18,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from cognicnc.config import AppConfig
 from cognicnc.simulator.telemetry import TelemetrySample
+from cognicnc.services.inference import PredictionResult  # <-- NEW IMPORT
 
 logger = logging.getLogger("cognicnc.ml")
-
 
 @dataclass
 class DecisionResult:
@@ -33,6 +34,13 @@ class DecisionResult:
     explanation: str
     recommended_action: str
 
+def _pattr(obj: Union[Dict[str, Any], PredictionResult, Any], attr: str, default: Any = None) -> Any:
+    """Safe attribute access for both dict AND PredictionResult dataclass."""
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(attr, default)
+    return getattr(obj, attr, default)
 
 class DecisionEngine:
     """Combines model outputs into risk assessments and recommendations."""
@@ -53,11 +61,12 @@ class DecisionEngine:
     def evaluate(
         self,
         sample: TelemetrySample,
-        prediction: Dict[str, Any],
+        prediction: Union[Dict[str, Any], PredictionResult],  # <-- NOW ACCEPTS DATACLASS
     ) -> DecisionResult:
         """Evaluate a telemetry sample + prediction and return a decision."""
-        fail_prob = prediction.get("failure_probability", 0.0)
-        is_anomaly = prediction.get("is_anomaly", False)
+        # FIX: Use _pattr() helper instead of .get()
+        fail_prob = _pattr(prediction, "failure_probability", 0.0)
+        is_anomaly = _pattr(prediction, "is_anomaly", False)
 
         # --- Determine risk level ----------------------------------------
         risk_score = 0

@@ -414,5 +414,30 @@ class Repository:
         reset_engine()
         logger.info("Database connection closed.")
         
+    def reset_all_data(self) -> int:
+        """
+        Delete ALL records from every table for a complete factory reset.
+        Deletion order respects foreign key constraints:
+          alerts → predictions → maintenance_events → production_log → telemetry_log
+        Returns total number of rows deleted.
+        """
+        from cognicnc.database.models import (
+            Alert,
+            Prediction,
+            MaintenanceEvent,
+            ProductionLog,
+            TelemetryLog,
+        )
 
-CogniCNCRepository = Repository
+        total_deleted = 0
+        with self._session() as session:
+            # Delete in reverse-dependency order
+            for model_cls in [Alert, Prediction, MaintenanceEvent, ProductionLog, TelemetryLog]:
+                count = session.query(model_cls).delete()
+                total_deleted += count
+            session.commit()
+
+        self._logger.info(f"Factory reset: deleted {total_deleted} total records from all tables")
+        return total_deleted    
+        
+

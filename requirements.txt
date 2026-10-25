@@ -17,3 +17,4 @@ sqlalchemy==2.0.36
 # ---- Dashboard (Phase 4) ----
 streamlit==1.40.2
 plotly==5.24.1
+streamlit-autorefresh==1.0.1

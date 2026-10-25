@@ -35,6 +35,15 @@ def _get(key: str):
     return st.session_state.get(key)
 
 
+def _pred_attr(pred: Any, attr: str, default: Any = None) -> Any:
+    """Safely access a PredictionResult attribute whether it is an object or dict."""
+    if pred is None:
+        return default
+    if isinstance(pred, dict):
+        return pred.get(attr, default)
+    return getattr(pred, attr, default)
+
+
 def _gauge(value: float, title: str, max_val: float = 1.0,
            thresholds: tuple = (0.35, 0.65), unit: str = "") -> go.Figure:
     """Create a circular gauge indicator."""
@@ -296,20 +305,52 @@ def render_maintenance() -> None:
         st.warning("Factory or inference service not initialized.")
         return
 
+    # Show demo-mode banner if models not loaded
+    if not getattr(inference, "is_loaded", False):
+        st.warning(
+            "⚠️ **Demo Mode:** ML models not loaded. Predictions use rule-based estimation. "
+            "Click **'🔄 Train Models Now'** in the sidebar to enable full ML predictions."
+        )
+
     machine_id = st.selectbox(
         "Select Machine", options=list(factory.machines.keys()), key="maint_machine",
     )
     machine = factory.machines[machine_id]
 
-    sample = machine._make_sample("now")
-    pred = inference.predict(sample)
-    decision = decision_engine.evaluate(sample, pred) if decision_engine else None
+    try:
+        sample = machine._make_sample("now")
+    except Exception as e:
+        st.error(f"Could not generate telemetry sample: {e}")
+        return
+
+    try:
+        pred = inference.predict(sample)
+    except Exception as e:
+        st.error(f"Prediction error: {e}")
+        st.info("The app is running in demo mode. ML models may not be loaded.")
+        return
+
+    try:
+        decision = decision_engine.evaluate(sample, pred) if decision_engine else None
+    except Exception as e:
+        st.warning(f"Decision engine error: {e}")
+        decision = None
+
+    # Extract prediction values safely
+    failure_prob = _pred_attr(pred, "failure_probability", 0.0)
+    anomaly_score = _pred_attr(pred, "anomaly_score", 0.0)
+    is_anomaly = _pred_attr(pred, "is_anomaly", False)
+    risk_level = _pred_attr(pred, "risk_level", "LOW")
+    feature_values = _pred_attr(pred, "feature_values", {})
+    feature_deviations = _pred_attr(pred, "feature_deviations", {})
+    model_loaded = _pred_attr(pred, "model_loaded", False)
+    explanation = _pred_attr(pred, "explanation", "")
 
     # --- Risk gauge + info card ----------------------------------------
     c1, c2 = st.columns([1, 2])
     with c1:
         st.plotly_chart(
-            _gauge(pred["failure_probability"], "Failure Probability",
+            _gauge(failure_prob, "Failure Probability",
                    max_val=1.0, thresholds=(0.35, 0.65), unit=""),
             use_container_width=True,
         )
@@ -321,33 +362,46 @@ def render_maintenance() -> None:
             st.markdown(f'**Risk Level:** {get_risk_badge(decision.risk_level)}', unsafe_allow_html=True)
             st.markdown(f'**Explanation:** {decision.explanation}')
             st.markdown(f'**Recommended Action:** {decision.recommended_action}')
+        else:
+            st.markdown(f'**Risk Level:** {get_risk_badge(risk_level)}', unsafe_allow_html=True)
+            if explanation:
+                st.markdown(f'**Explanation:** {explanation}')
         st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Secondary metrics ----------------------------------------------
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown(kpi_card("Anomaly Score", f"{pred['anomaly_score']:.3f}", "purple", "lower = more anomalous"), unsafe_allow_html=True)
+        st.markdown(kpi_card("Anomaly Score", f"{anomaly_score:.3f}", "purple", "lower = more anomalous"), unsafe_allow_html=True)
     with c2:
-        anom_val = "⚠️ YES" if pred["is_anomaly"] else "✅ NO"
-        anom_color = "red" if pred["is_anomaly"] else "green"
+        anom_val = "⚠️ YES" if is_anomaly else "✅ NO"
+        anom_color = "red" if is_anomaly else "green"
         st.markdown(kpi_card("Anomaly Flag", anom_val, anom_color, "isolation forest"), unsafe_allow_html=True)
     with c3:
-        st.markdown(kpi_card("Model", pred.get("model_type", "N/A"), "blue", "classifier"), unsafe_allow_html=True)
+        model_status = "ML Model" if model_loaded else "Rule-Based"
+        model_color = "green" if model_loaded else "amber"
+        st.markdown(kpi_card("Prediction Source", model_status, model_color, "inference engine"), unsafe_allow_html=True)
 
     # --- Model info card ------------------------------------------------
-    st.markdown('<div class="section-title">Model Information</div>', unsafe_allow_html=True)
-    meta = inference.failure_model_info
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown(kpi_card("Model Type", meta.get("model_type", "N/A"), "blue"), unsafe_allow_html=True)
-    if "metrics" in meta:
-        m = meta["metrics"]
-        with c2:
-            st.markdown(kpi_card("F1 Score", f"{m.get('f1', 0):.3f}", "green", "training"), unsafe_allow_html=True)
-        with c3:
-            st.markdown(kpi_card("Precision", f"{m.get('precision', 0):.3f}", "blue", "training"), unsafe_allow_html=True)
-        with c4:
-            st.markdown(kpi_card("Recall", f"{m.get('recall', 0):.3f}", "amber", "training"), unsafe_allow_html=True)
+    if model_loaded:
+        st.markdown('<div class="section-title">Model Information</div>', unsafe_allow_html=True)
+        try:
+            meta = getattr(inference, "failure_model_info", {})
+            if not isinstance(meta, dict):
+                meta = {}
+        except Exception:
+            meta = {}
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(kpi_card("Model Type", meta.get("model_type", "Random Forest"), "blue"), unsafe_allow_html=True)
+        if "metrics" in meta:
+            m = meta["metrics"]
+            with c2:
+                st.markdown(kpi_card("F1 Score", f"{m.get('f1', 0):.3f}", "green", "training"), unsafe_allow_html=True)
+            with c3:
+                st.markdown(kpi_card("Precision", f"{m.get('precision', 0):.3f}", "blue", "training"), unsafe_allow_html=True)
+            with c4:
+                st.markdown(kpi_card("Recall", f"{m.get('recall', 0):.3f}", "amber", "training"), unsafe_allow_html=True)
 
     st.caption(
         "⚠️ Predictions are model estimates based on simulated telemetry. "
@@ -356,12 +410,16 @@ def render_maintenance() -> None:
 
     # --- Features sent to model ----------------------------------------
     st.markdown('<div class="section-title">Features Sent to Model</div>', unsafe_allow_html=True)
-    features = pred.get("feature_values", {})
-    if features:
-        feat_df = pd.DataFrame({
-            "Feature": list(features.keys()),
-            "Value": [str(v) for v in features.values()],
-        })
+    if feature_values:
+        rows = []
+        for feat_name, feat_val in feature_values.items():
+            deviation = feature_deviations.get(feat_name, "")
+            rows.append({
+                "Feature": feat_name,
+                "Value": f"{feat_val:.2f}" if isinstance(feat_val, (int, float)) else str(feat_val),
+                "Status": deviation,
+            })
+        feat_df = pd.DataFrame(rows)
         st.dataframe(feat_df, use_container_width=True, hide_index=True)
 
 
@@ -680,16 +738,22 @@ def _run_ticks(n: int) -> None:
             repo.store_telemetry(samples)
         for s in samples:
             if inference and inference.is_loaded:
-                pred = inference.predict(s)
-                if repo:
-                    repo.store_prediction(s.machine_id, s.timestamp, pred)
-                if decision_engine and alert_service:
-                    decision = decision_engine.evaluate(s, pred)
-                    alert_service.process(s, decision)
+                try:
+                    pred = inference.predict(s)
+                    if repo:
+                        repo.store_prediction(s.machine_id, s.timestamp, pred)
+                    if decision_engine and alert_service:
+                        decision = decision_engine.evaluate(s, pred)
+                        alert_service.process(s, decision)
+                except Exception:
+                    pass  # Keep simulation running even if prediction fails
             if repo:
-                repo.store_production(
-                    s.timestamp, s.machine_id,
-                    parts_produced=1 if s.production_count > 0 else 0,
-                    parts_rejected=1 if s.state == "FAULT" else 0,
-                    cycle_time_s=s.cycle_time_s,
-                )
+                try:
+                    repo.store_production(
+                        s.timestamp, s.machine_id,
+                        parts_produced=1 if s.production_count > 0 else 0,
+                        parts_rejected=1 if s.state == "FAULT" else 0,
+                        cycle_time_s=s.cycle_time_s,
+                    )
+                except Exception:
+                    pass

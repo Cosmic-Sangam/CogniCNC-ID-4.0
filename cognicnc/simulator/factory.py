@@ -4,6 +4,7 @@ The factory owns the simulation lifecycle:
 * ``start()`` / ``pause()`` / ``reset()`` control the clock.
 * ``tick()`` advances all machines by one time step.
 * ``apply_scenario()`` injects parameter overrides into target machines.
+* ``full_factory_reset()`` resets everything to a clean demo-ready state.
 """
 
 from __future__ import annotations
@@ -87,6 +88,55 @@ class VirtualFactory:
         for m in self.machines.values():
             m.reset()
         logger.info("Factory simulation reset.")
+
+    def full_factory_reset(self) -> None:
+        """Complete factory reset for demo restarts.
+
+        Does everything ``reset()`` does, plus:
+        - Forces every machine to RUNNING state
+        - Clears all scenario modifiers
+        - Resets machine-level production counters and tool wear to zero
+        - Resets machine-level uptime/downtime to zero
+        - Logs the reset event
+        """
+        # 1. Stop simulation and reset clock
+        self._running = False
+        self._tick_count = 0
+        self._sim_time = datetime(2025, 1, 1, 8, 0, 0, tzinfo=timezone.utc)
+        self._speed_multiplier = 1
+
+        # 2. Clear all scenarios
+        self._active_scenario = None
+        self._scenario_ticks_remaining = 0
+
+        # 3. Reset aggregate counters
+        self.total_production = 0
+        self.total_downtime_min = 0.0
+
+        # 4. Reset every machine to clean nominal state
+        for m in self.machines.values():
+            # Call the machine's own reset (clears internal state)
+            m.reset()
+
+            # Force state to RUNNING (not IDLE)
+            m.state = MachineState.RUNNING
+
+            # Clear any lingering scenario modifiers
+            m.clear_scenario_modifiers()
+
+            # Zero out production and maintenance counters
+            m.production_count = 0
+            m.uptime_min = 0.0
+            m.downtime_min = 0.0
+
+            # Reset tool wear to zero
+            if hasattr(m, "tool_wear_min"):
+                m.tool_wear_min = 0.0
+
+        logger.info(
+            "Full factory reset completed: %d machines restored to nominal RUNNING state.",
+            len(self.machines),
+        )
 
     def set_speed(self, multiplier: int) -> None:
         if multiplier not in (1, 5, 10):
@@ -205,6 +255,7 @@ class VirtualFactory:
 
     def get_fault_count(self) -> int:
         return sum(1 for m in self.machines.values() if m.state == MachineState.FAULT)
-    
-    # Alias for integration tests
+
+
+# Alias for integration tests
 FactorySimulator = VirtualFactory
