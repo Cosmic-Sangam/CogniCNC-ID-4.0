@@ -194,8 +194,10 @@ def auto_train_models(config) -> bool:
     import subprocess
     project_root = Path(__file__).resolve().parent
     train_script = project_root / "scripts" / "train_models.py"
+    logger = get_logger("cognicnc")
 
     if not train_script.exists():
+        logger.error("Train script not found at %s", train_script)
         return False
 
     try:
@@ -204,16 +206,17 @@ def auto_train_models(config) -> bool:
             cwd=str(project_root),
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=180,
         )
         if result.returncode == 0:
+            logger.info("Auto-train successfully completed.")
             return True
         else:
-            logger = get_logger("cognicnc")
-            logger.error("Auto-train failed: %s", result.stderr[:500])
+            logger.error("Auto-train failed with return code %d", result.returncode)
+            logger.error("STDOUT: %s", result.stdout[-500:] if result.stdout else "None")
+            logger.error("STDERR: %s", result.stderr[-500:] if result.stderr else "None")
             return False
     except Exception as e:
-        logger = get_logger("cognicnc")
         logger.error("Auto-train exception: %s", e)
         return False
 
@@ -302,7 +305,6 @@ def main() -> None:
     else:
         st.sidebar.warning("🧠 ML Models: **Demo Mode** (rule-based)")
         if st.sidebar.button("🔄 Train Models Now", use_container_width=True):
-            # Fixed: Changed st.sidebar.spinner to st.spinner
             with st.spinner("Training models from AI4I dataset..."):
                 success = auto_train_models(st.session_state.config)
                 if success:
