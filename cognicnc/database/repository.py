@@ -414,30 +414,69 @@ class Repository:
         reset_engine()
         logger.info("Database connection closed.")
         
+    # def reset_all_data(self) -> int:
+    #     """
+    #     Delete ALL records from every table for a complete factory reset.
+    #     Deletion order respects foreign key constraints:
+    #       alerts → predictions → maintenance_events → production_log → telemetry_log
+    #     Returns total number of rows deleted.
+    #     """
+    #     from cognicnc.database.models import (
+    #         Alert,
+    #         Prediction,
+    #         MaintenanceEvent,
+    #         ProductionLog,
+    #         TelemetryLog,
+    #     )
+
+    #     total_deleted = 0
+    #     with self._session() as session:
+    #         # Delete in reverse-dependency order
+    #         for model_cls in [Alert, Prediction, MaintenanceEvent, ProductionLog, TelemetryLog]:
+    #             count = session.query(model_cls).delete()
+    #             total_deleted += count
+    #         session.commit()
+
+    #     self._logger.info(f"Factory reset: deleted {total_deleted} total records from all tables")
+    #     return total_deleted    
+    
     def reset_all_data(self) -> int:
+        """Delete all records from every database table.
+
+        Uses Base.metadata.sorted_tables to delete dynamically in reverse
+        dependency order without needing explicit model class imports.
         """
-        Delete ALL records from every table for a complete factory reset.
-        Deletion order respects foreign key constraints:
-          alerts → predictions → maintenance_events → production_log → telemetry_log
-        Returns total number of rows deleted.
-        """
-        from cognicnc.database.models import (
-            Alert,
-            Prediction,
-            MaintenanceEvent,
-            ProductionLog,
-            TelemetryLog,
-        )
+        from cognicnc.database.models import Base
+
+        # Locate session factory
+        session_factory = None
+        for attr in ("_get_session", "_session", "get_session", "session", "Session"):
+            if hasattr(self, attr) and callable(getattr(self, attr)):
+                session_factory = getattr(self, attr)
+                break
+
+        if session_factory is None:
+            # Fallback to database connection module
+            try:
+                from cognicnc.database.connection import get_session_factory
+                session_factory = get_session_factory(self.config)
+            except Exception as e:
+                logger.error("Could not resolve session factory for reset: %s", e)
+                raise RuntimeError("No session factory available in Repository") from e
 
         total_deleted = 0
-        with self._session() as session:
-            # Delete in reverse-dependency order
-            for model_cls in [Alert, Prediction, MaintenanceEvent, ProductionLog, TelemetryLog]:
-                count = session.query(model_cls).delete()
-                total_deleted += count
+        with session_factory() as session:
+            for table in reversed(Base.metadata.sorted_tables):
+                try:
+                    result = session.execute(table.delete())
+                    deleted_count = result.rowcount if result.rowcount is not None else 0
+                    total_deleted += deleted_count
+                    logger.debug("Deleted %d rows from table '%s'", deleted_count, table.name)
+                except Exception as e:
+                    logger.warning("Error clearing table '%s': %s", table.name, e)
             session.commit()
 
-        self._logger.info(f"Factory reset: deleted {total_deleted} total records from all tables")
+        logger.info("Factory reset complete: deleted %d records across all tables.", total_deleted)
         return total_deleted    
         
 
